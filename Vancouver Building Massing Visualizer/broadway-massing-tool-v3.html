@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broadway Plan Massing Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --vellum:#EEF1F4; --paper:#F7F9FB; --ink:#16223A; --ink-2:#4A5568; --rule:#C9D2DC;
+    --centre:#3B6FD1; --village:#E08A2E; --resi:#7A5AC8; --employ:#2F8F83;
+    --pass:#2E8B57; --fail:#C8443C; --warn:#B7791F;
+    --zone:var(--centre);
+    font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--vellum);color:var(--ink);height:100%}
+  body{display:grid;grid-template-rows:auto 1fr;min-height:100vh}
+  header{display:flex;align-items:baseline;gap:18px;padding:16px 22px 10px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  header h1{margin:0;font-size:20px;font-weight:700;font-stretch:112%;letter-spacing:-.01em}
+  header p{margin:0;color:var(--ink-2);font-size:13px;max-width:66ch}
+  .app{display:grid;grid-template-columns:330px 1fr 300px;gap:0;min-height:0}
+  aside,section.right{padding:16px 18px;overflow:auto;background:var(--paper)}
+  aside{border-right:1px solid var(--rule)}
+  section.right{border-left:1px solid var(--rule)}
+  main{position:relative;min-height:420px;display:grid;grid-template-rows:1fr auto}
+  #view{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+  #view:active{cursor:grabbing}
+  .hud{position:absolute;left:14px;top:12px;font-size:12px;color:var(--ink-2);line-height:1.5}
+  .hud b{color:var(--ink);font-weight:600}
+  .plan{border-top:1px solid var(--rule);padding:10px 14px;display:flex;gap:16px;align-items:center;background:var(--paper)}
+  .plan svg{width:190px;height:140px;flex:none}
+  .plan p{margin:0;font-size:12px;color:var(--ink-2);line-height:1.5;max-width:52ch}
+
+  fieldset{border:0;padding:0;margin:0 0 18px}
+  legend{font-weight:700;font-size:13px;margin-bottom:8px;padding:0;font-stretch:108%}
+  label.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;font-size:13px;margin:7px 0}
+  label.row span.v{font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right;min-width:64px}
+  label.row input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--zone);height:22px;margin:0}
+  select,input[type=number]{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--rule);border-radius:4px;background:#fff;color:var(--ink);width:100%}
+  select:focus,input:focus,input[type=range]:focus-visible,button:focus-visible{outline:2px solid var(--zone);outline-offset:2px}
+  .seg{display:flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden;margin:6px 0 4px}
+  .seg button{flex:1;font:inherit;font-size:12px;padding:6px 4px;border:0;background:#fff;color:var(--ink-2);cursor:pointer}
+  .seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+  .note{font-size:12px;color:var(--ink-2);line-height:1.5;margin:4px 0 0}
+  .zone-tag{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--zone);vertical-align:-1px;margin-right:6px}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:16px}
+  .stat b{display:block;font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+  .stat span{font-size:12px;color:var(--ink-2)}
+  .stat small{font-size:11px;color:var(--ink-2)}
+  h2{font-size:13px;font-weight:700;margin:0 0 8px;font-stretch:108%}
+  ul.checks{list-style:none;margin:0 0 16px;padding:0}
+  ul.checks li{display:grid;grid-template-columns:14px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--rule);font-size:13px;line-height:1.4}
+  ul.checks li:last-child{border-bottom:1px solid var(--rule)}
+  ul.checks li i{width:14px;height:14px;border-radius:50%;margin-top:3px;background:var(--pass)}
+  ul.checks li.fail i{background:var(--fail)} ul.checks li.warn i{background:var(--warn)}
+  ul.checks li small{display:block;color:var(--ink-2);font-size:12px;margin-top:2px}
+  .fine{font-size:11px;color:var(--ink-2);line-height:1.5;border-top:1px solid var(--rule);padding-top:10px}
+  .fine a{color:inherit}
+
+  @media (max-width:1100px){.app{grid-template-columns:300px 1fr}section.right{grid-column:1/-1;border-left:0;border-top:1px solid var(--rule)}}
+  @media (max-width:720px){.app{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--rule)}main{min-height:360px}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Broadway Plan massing tool</h1>
+  <p>Test a site between Clark Drive and Vine Street. Pick the policy area, shape the podium and tower, and see where the massing sits against Broadway Plan limits.</p>
+</header>
+
+<div class="app">
+<aside>
+  <fieldset>
+    <legend>Policy area</legend>
+    <select id="area" aria-label="Broadway Plan policy area"></select>
+    <p class="note" id="areaNote"></p>
+    <label class="row" style="margin-top:10px">Max storeys override <span class="v" id="maxStV"></span>
+      <input type="range" id="maxSt" min="4" max="45" step="1"></label>
+    <label class="row">Max FSR override <span class="v" id="maxFsrV"></span>
+      <input type="range" id="maxFsr" min="1" max="14" step="0.1"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Site</legend>
+    <label class="row">Frontage <span class="v" id="wV"></span><input type="range" id="w" min="15" max="120" step="0.5" value="45"></label>
+    <label class="row">Depth <span class="v" id="dV"></span><input type="range" id="d" min="25" max="80" step="0.5" value="37"></label>
+    <label class="row">Distance to nearest existing tower <span class="v" id="sepV"></span><input type="range" id="sep" min="5" max="60" step="0.5" value="26"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Podium</legend>
+    <div class="seg" role="group" aria-label="Ground floor use">
+      <button data-g="retail" aria-pressed="true">Retail ground floor</button>
+      <button data-g="resi" aria-pressed="false">Residential ground floor</button>
+    </div>
+    <label class="row">Podium storeys <span class="v" id="podV"></span><input type="range" id="pod" min="1" max="8" step="1" value="3"></label>
+    <label class="row">Front setback <span class="v" id="sfV"></span><input type="range" id="sf" min="0" max="8" step="0.5" value="2"></label>
+    <label class="row">Side setbacks <span class="v" id="ssV"></span><input type="range" id="ss" min="0" max="8" step="0.5" value="0"></label>
+    <label class="row">Rear setback (lane) <span class="v" id="srV"></span><input type="range" id="sr" min="0" max="12" step="0.5" value="3"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Tower</legend>
+    <div class="seg" role="group" aria-label="Tower use">
+      <button data-t="resi" aria-pressed="true">Residential</button>
+      <button data-t="office" aria-pressed="false">Office</button>
+    </div>
+    <label class="row">Total storeys <span class="v" id="stV"></span><input type="range" id="st" min="4" max="45" step="1" value="20"></label>
+    <label class="row">Tower floor plate <span class="v" id="fpV"></span><input type="range" id="fp" min="300" max="1000" step="10" value="600"></label>
+    <label class="row">Tower step-back from podium edge <span class="v" id="tsV"></span><input type="range" id="ts" min="0" max="8" step="0.5" value="3"></label>
+  </fieldset>
+</aside>
+
+<main>
+  <canvas id="view"></canvas>
+  <div class="hud">Drag to orbit, scroll to zoom<br><b id="hudH"></b></div>
+  <div class="plan">
+    <svg id="planSvg" viewBox="0 0 190 140" aria-label="Site plan"></svg>
+    <p id="planText"></p>
+  </div>
+</main>
+
+<section class="right">
+  <div class="stats">
+    <div class="stat"><b id="fsrOut">–</b><span>FSR</span></div>
+    <div class="stat"><b id="hOut">–</b><span>height</span></div>
+    <div class="stat"><b id="gfaOut">–</b><span>gross floor area</span></div>
+    <div class="stat"><b id="unitOut">–</b><span id="unitLbl">est. homes</span></div>
+  </div>
+  <h2>Against the Plan</h2>
+  <ul class="checks" id="checks"></ul>
+  <p class="fine">Presets reflect the Broadway Plan (2022) as amended in 2024–25 for provincial Transit-Oriented Area rules, rounded from public summaries. Site-specific limits vary by block, view cones, tower-limit rules and rental/below-market tenure, so confirm against the City's current Plan text before relying on any number here. Floor-to-floor: 3.0 m residential, 3.65 m office, 5.2 m retail ground floor.</p>
+</section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------- Policy presets (approximate, editable) ----------
+const AREAS = [
+ {id:'centre-core', name:'Centre — Central Broadway, near a station', color:'--centre', storeys:30, fsr:10.0, towersPerBlock:null,
+  note:'Highest-density mixed-use core around the new SkyTrain stations. Roughly 30–40 storeys and ~10 FSR; job space expected on lower floors.'},
+ {id:'centre-view', name:'Centre — former view-cone area', color:'--centre', storeys:25, fsr:8.0, towersPerBlock:null,
+  note:'Areas raised from 10 storeys / 4.5 FSR to 25 storeys / 8.0 FSR after view cones were removed. Rental or strata; two non-residential levels typically required.'},
+ {id:'village-200', name:'Village — high street, within 200 m of a station', color:'--village', storeys:20, fsr:5.0, towersPerBlock:null,
+  note:'Main Street, South Granville, West 4th etc. Commercial at grade required. Residential must be 100% rental with 20% below-market.'},
+ {id:'village-400', name:'Village — high street, 200–400 m of a station', color:'--village', storeys:12, fsr:4.0, towersPerBlock:null,
+  note:'Same rental / below-market conditions as the inner Village ring, at a lower cap.'},
+ {id:'resi-tower', name:'Residential area — tower site', color:'--resi', storeys:20, fsr:6.5, towersPerBlock:2,
+  note:'Fairview, Kitsilano North and Mount Pleasant apartment blocks. Roughly 20 storeys; tower-limit rules cap the number of new towers per block outside the 400 m station rings. Pre-zoned sites allow 18–22 storeys with flexibility to 26.'},
+ {id:'resi-low', name:'Residential area — low-rise', color:'--resi', storeys:8, fsr:3.0, towersPerBlock:0,
+  note:'Formerly 6 storeys / 2.4–2.7 FSR; now 8 storeys / 3.0 FSR for secured rental or social housing within 800 m of a station.'},
+ {id:'employ', name:'Mount Pleasant employment / industrial-flex', color:'--employ', storeys:20, fsr:6.5, towersPerBlock:null,
+  note:'Industrial-flex and office areas east of Main. Raised from 12 storeys / 4.0 FSR to about 20 storeys / 6.5 FSR.'},
+];
+const RULES = {
+  fpResi:604, fpOfficeMin:743, fpOfficeMax:929,   // m²
+  sepResi:24.4, sepComm:15.2,                      // m
+  ffResi:3.0, ffOffice:3.65, ffRetail:5.2,
+  flexStoreys:5,                                   // extra height for large sites / open space
+  unitNet:70, efficiency:0.85,
+};
+
+// ---------- State ----------
+const S = { areaIdx:0, ground:'retail', tower:'resi',
+  w:45, d:37, sep:26, pod:3, sf:2, ss:0, sr:3, st:20, fp:600, ts:3, maxSt:30, maxFsr:10 };
+const $ = id=>document.getElementById(id);
+
+const areaSel = $('area');
+AREAS.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.name;areaSel.appendChild(o);});
+areaSel.onchange = ()=>{ S.areaIdx=+areaSel.value; const a=AREAS[S.areaIdx]; S.maxSt=a.storeys; S.maxFsr=a.fsr;
+  $('maxSt').value=a.storeys; $('maxFsr').value=a.fsr; update(); };
+
+['w','d','sep','pod','sf','ss','sr','st','fp','ts','maxSt','maxFsr'].forEach(k=>{
+  $(k).addEventListener('input',e=>{S[k]=+e.target.value;update();});
+});
+document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{S.ground=b.dataset.g;
+  document.querySelectorAll('[data-g]').forEach(x=>x.setAttribute('aria-pressed',x===b));update();});
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.tower=b.dataset.t;
+  document.querySelectorAll('[data-t]').forEach(x=>x.setAttribute('aria-pressed',x===b));update();});
+
+// ---------- Geometry / metrics ----------
+function compute(){
+  const site = S.w*S.d;
+  const pw = Math.max(0,S.w-2*S.ss), pd = Math.max(0,S.d-S.sf-S.sr);
+  const podArea = pw*pd;
+  const pod = Math.min(S.pod, S.st);
+  const towerLevels = Math.max(0,S.st-pod);
+  // tower plate: try to keep ~1.35:1 proportion, clamp inside podium minus stepback
+  const availW = Math.max(1,pw-2*S.ts), availD = Math.max(1,pd-2*S.ts);
+  let tw = Math.sqrt(S.fp*1.35), td = S.fp/tw;
+  if (tw>availW){tw=availW;td=S.fp/tw;} if(td>availD){td=availD;tw=S.fp/td;}
+  const fp = Math.min(S.fp, tw*td); // actual plate (may be clipped by footprint)
+  const clipped = fp < S.fp-0.5;
+  const ffT = S.tower==='office'?RULES.ffOffice:RULES.ffResi;
+  const ffG = S.ground==='retail'?RULES.ffRetail:RULES.ffResi;
+  const ffP = S.tower==='office'?RULES.ffOffice:RULES.ffResi; // podium levels follow tower use
+  const podH = ffG + (pod-1)*ffP;
+  const height = podH + towerLevels*ffT;
+  const gfa = podArea*pod + fp*towerLevels;
+  const fsr = site>0?gfa/site:0;
+  const resiGfa = S.tower==='resi' ? gfa - (S.ground==='retail'?podArea:0) : 0;
+  const units = Math.round(resiGfa*RULES.efficiency/RULES.unitNet);
+  return {site,pw,pd,podArea,pod,towerLevels,tw,td,fp,clipped,podH,height,gfa,fsr,units,ffT,ffG,ffP};
+}
+
+const fmt=(n,dp=0)=>n.toLocaleString('en-CA',{maximumFractionDigits:dp,minimumFractionDigits:dp});
+
+function update(){
+  const a = AREAS[S.areaIdx];
+  document.documentElement.style.setProperty('--zone',`var(${a.color})`);
+  $('areaNote').innerHTML = `<span class="zone-tag"></span>${a.note}`;
+  // slider labels
+  $('wV').textContent=fmt(S.w,1)+' m'; $('dV').textContent=fmt(S.d,1)+' m'; $('sepV').textContent=fmt(S.sep,1)+' m';
+  $('podV').textContent=S.pod; $('sfV').textContent=fmt(S.sf,1)+' m'; $('ssV').textContent=fmt(S.ss,1)+' m'; $('srV').textContent=fmt(S.sr,1)+' m';
+  $('stV').textContent=S.st; $('fpV').textContent=fmt(S.fp)+' m² ('+fmt(S.fp*10.764)+' sf)'; $('tsV').textContent=fmt(S.ts,1)+' m';
+  $('maxStV').textContent=S.maxSt; $('maxFsrV').textContent=fmt(S.maxFsr,1);
+
+  const m = compute();
+  $('fsrOut').textContent = fmt(m.fsr,2);
+  $('hOut').textContent = fmt(m.height,1)+' m';
+  $('gfaOut').innerHTML = fmt(m.gfa)+' m²<small> · '+fmt(m.gfa*10.764)+' sf</small>';
+  $('unitOut').textContent = S.tower==='resi'?fmt(m.units):'—';
+  $('unitLbl').textContent = S.tower==='resi'?`est. homes (~${RULES.unitNet} m² net)`:'homes (office tower)';
+  $('hudH').textContent = `${S.st} storeys · ${fmt(m.height,1)} m · site ${fmt(m.site)} m²`;
+
+  // checks
+  const c=[];
+  const overFlex = S.st>S.maxSt+RULES.flexStoreys;
+  c.push({ok:S.st<=S.maxSt, cls:S.st<=S.maxSt?'':(overFlex?'fail':'warn'),
+    t:`Height: ${S.st} storeys vs ${S.maxSt} allowed`,
+    s:S.st<=S.maxSt?'Within the base height for this area.':(overFlex?`Exceeds even the ${RULES.flexStoreys}-storey flexibility for large sites or added open space.`:`Over the base limit; up to ${RULES.flexStoreys} extra storeys may be considered for larger sites or on-site public open space.`)});
+  c.push({cls:m.fsr<=S.maxFsr?'':(m.fsr<=S.maxFsr*1.1?'warn':'fail'),
+    t:`Density: ${fmt(m.fsr,2)} FSR vs ${fmt(S.maxFsr,1)} max`,
+    s:m.fsr<=S.maxFsr?`${fmt((S.maxFsr-m.fsr)*m.site)} m² of unused density remains.`:`${fmt((m.fsr-S.maxFsr)*m.site)} m² over. Small increases (~0.3 FSR) are sometimes allowed for commercial space; otherwise trim the podium or floor plate.`});
+  if (S.tower==='resi'){
+    c.push({cls:m.fp<=RULES.fpResi?'':(m.fp<=670?'warn':'fail'),
+      t:`Floor plate: ${fmt(m.fp)} m² vs ${RULES.fpResi} m² (6,500 sf) residential guideline`,
+      s:m.fp<=RULES.fpResi?'Slender tower form as the Plan intends.':'Over the guideline. Pre-zoned sites allow up to ~669 m² (7,200 sf); rezonings above 6,500 sf have been proposed but face scrutiny.'});
+  } else {
+    const ok = m.fp<=RULES.fpOfficeMax;
+    c.push({cls:ok?'':'fail', t:`Floor plate: ${fmt(m.fp)} m² vs ${RULES.fpOfficeMin}–${RULES.fpOfficeMax} m² office range`,
+      s:ok?(m.fp<RULES.fpOfficeMin?'Below the typical office range; efficient but small for commercial tenants.':'Within the 8,000–10,000 sf office range.'):'Larger than the office guideline.'});
+  }
+  const sepReq = S.tower==='resi'?RULES.sepResi:RULES.sepComm;
+  c.push({cls:S.sep>=sepReq?'':'fail', t:`Tower separation: ${fmt(S.sep,1)} m vs ${sepReq} m minimum`,
+    s:S.sep>=sepReq?'Meets the face-to-face separation guideline.':`${fmt(sepReq-S.sep,1)} m short. Shift the tower, shrink the plate, or increase the side setback.`});
+  if (S.ground==='resi' && a.id.startsWith('village')) c.push({cls:'fail',t:'Ground floor must be commercial in Villages',s:'The Plan requires shops or services at grade on high streets.'});
+  if (a.id.startsWith('centre') && S.pod<2 && a.id==='centre-view') c.push({cls:'warn',t:'Two non-residential levels expected',s:'Former view-cone Centre sites are asked to provide at least two levels of job space.'});
+  if (a.towersPerBlock===0 && m.towerLevels>0 && S.st>8) c.push({cls:'fail',t:'Towers not contemplated here',s:'Low-rise residential areas top out at 8 storeys.'});
+  if (a.towersPerBlock) c.push({cls:'warn',t:`Tower-limit area: max ${a.towersPerBlock} new towers per block`,s:'Check how many towers are already approved on this block; limits are lifted within ~400 m of stations.'});
+  if (a.id.startsWith('village') || a.id==='resi-low' || a.id==='resi-tower') c.push({cls:'',t:S.tower==='resi'?`Tenure: 100% secured rental, 20% below-market (~${fmt(Math.round(m.units*0.2))} homes)`:'Tenure: residential would need to be rental',s:'Provincial TOA alignment ties the added height to rental and below-market housing.'});
+  if (m.clipped) c.push({cls:'warn',t:`Floor plate clipped to ${fmt(m.fp)} m² by the footprint`,s:'The requested plate does not fit inside the podium minus the step-back.'});
+  $('checks').innerHTML = c.map(x=>`<li class="${x.cls}"><i></i><div>${x.t}<small>${x.s}</small></div></li>`).join('');
+
+  drawPlan(m); build3D(m);
+}
+
+// ---------- Plan view (SVG) ----------
+function drawPlan(m){
+  const svg=$('planSvg'); const W=190,H=140, pad=14;
+  const sc=Math.min((W-2*pad)/S.w,(H-2*pad)/S.d);
+  const ox=(W-S.w*sc)/2, oy=(H-S.d*sc)/2;
+  const r=(x,y,w,h,f,st,dash='')=>`<rect x="${ox+x*sc}" y="${oy+y*sc}" width="${w*sc}" height="${h*sc}" fill="${f}" stroke="${st}" stroke-width="1" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  const zone=getComputedStyle(document.documentElement).getPropertyValue(`--${AREAS[S.areaIdx].color.slice(2)}`).trim();
+  const tx=S.ss+(m.pw-m.tw)/2, ty=S.sr+(m.pd-m.td)/2; // tower centred, y measured from lane (top)
+  svg.innerHTML =
+    r(0,0,S.w,S.d,'#fff','#8A94A3','3 2') +
+    r(S.ss,S.sr,m.pw,m.pd,zone+'33',zone) +
+    r(tx,ty,m.tw,m.td,zone,zone) +
+    `<text x="${W/2}" y="${oy-4}" font-size="7" text-anchor="middle" fill="#4A5568">lane</text>
+     <text x="${W/2}" y="${oy+S.d*sc+9}" font-size="7" text-anchor="middle" fill="#4A5568">street</text>`;
+  $('planText').textContent = `Podium ${fmt(m.pw,1)} × ${fmt(m.pd,1)} m (${fmt(m.podArea)} m², ${Math.round(m.podArea/m.site*100)}% coverage). Tower ${fmt(m.tw,1)} × ${fmt(m.td,1)} m, ${m.towerLevels} levels above a ${m.pod}-storey, ${fmt(m.podH,1)} m podium.`;
+}
+
+// ---------- 3D ----------
+const canvas=$('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(38,1,0.5,2000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa5b1,0.9));
+const sun=new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(-60,120,80); scene.add(sun);
+const group=new THREE.Group(); scene.add(group);
+
+let theta=-0.75, phi=1.05, radius=140, target=new THREE.Vector3(0,20,0), dragging=false, lx=0, ly=0;
+function setCam(){
+  camera.position.set(target.x+radius*Math.sin(phi)*Math.sin(theta), target.y+radius*Math.cos(phi), target.z+radius*Math.sin(phi)*Math.cos(theta));
+  camera.lookAt(target);
+}
+canvas.addEventListener('pointerdown',e=>{dragging=true;lx=e.clientX;ly=e.clientY;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointerup',()=>dragging=false);
+canvas.addEventListener('pointermove',e=>{if(!dragging)return;theta-=(e.clientX-lx)*0.006;phi=Math.min(1.5,Math.max(0.15,phi-(e.clientY-ly)*0.006));lx=e.clientX;ly=e.clientY;});
+canvas.addEventListener('wheel',e=>{e.preventDefault();radius=Math.min(600,Math.max(40,radius*(1+e.deltaY*0.001)));},{passive:false});
+
+function box(w,h,d,x,y,z,color,opacity=1){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color,transparent:opacity<1,opacity}));
+  mesh.position.set(x,y+h/2,z); group.add(mesh);
+  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x16223A,transparent:true,opacity:opacity<1?0.25:0.6}));
+  edges.position.copy(mesh.position); group.add(edges);
+}
+function build3D(m){
+  while(group.children.length) group.remove(group.children[0]);
+  const zone=new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(`--${AREAS[S.areaIdx].color.slice(2)}`).trim());
+  // ground: site + surroundings
+  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0xDDE3E9}));
+  gnd.rotation.x=-Math.PI/2; gnd.position.y=-0.05; group.add(gnd);
+  const grid=new THREE.GridHelper(400,40,0xC9D2DC,0xC9D2DC); grid.position.y=0; group.add(grid);
+  // street (front, +z) and lane (back, -z)
+  box(400,0.1,20,0,-0.04,S.d/2+10,0xB9C2CC); box(400,0.1,6,0,-0.04,-S.d/2-3,0xC4CCD5);
+  // site outline
+  const outline=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-S.w/2,0.1,-S.d/2),new THREE.Vector3(S.w/2,0.1,-S.d/2),new THREE.Vector3(S.w/2,0.1,S.d/2),new THREE.Vector3(-S.w/2,0.1,S.d/2)]),new THREE.LineDashedMaterial({color:0x16223A,dashSize:1.5,gapSize:1}));
+  outline.computeLineDistances(); group.add(outline);
+  // podium (ground floor drawn separately when retail so it reads taller)
+  const pz=(S.sf-S.sr)/2*-1; // podium centre z; front is +z
+  const pzc=(-S.d/2+S.sr)+(m.pd/2);
+  box(m.pw,m.ffG,m.pd,0,0,pzc,S.ground==='retail'?0xF2F4F6:zone.clone().lerp(new THREE.Color(0xffffff),0.55).getHex());
+  if(m.pod>1) box(m.pw,m.podH-m.ffG,m.pd,0,m.ffG,pzc,zone.clone().lerp(new THREE.Color(0xffffff),0.45).getHex());
+  // tower
+  if(m.towerLevels>0){
+    box(m.tw,m.height-m.podH,m.td,0,m.podH,pzc,zone.getHex());
+    // storey ticks along one edge
+    const pts=[]; for(let i=1;i<m.towerLevels;i++){const y=m.podH+i*m.ffT;pts.push(new THREE.Vector3(m.tw/2+0.05,y,pzc+m.td/2+0.05),new THREE.Vector3(m.tw/2+1.2,y,pzc+m.td/2+1.2));}
+    group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x16223A,transparent:true,opacity:0.35})));
+  }
+  // max-height datum
+  const maxH=m.ffG+(Math.min(S.pod,S.maxSt)-1)*m.ffP+Math.max(0,S.maxSt-Math.min(S.pod,S.maxSt))*m.ffT;
+  const datum=new THREE.Mesh(new THREE.PlaneGeometry(S.w+12,S.d+12),new THREE.MeshBasicMaterial({color:S.st>S.maxSt?0xC8443C:0x2E8B57,transparent:true,opacity:0.18,side:THREE.DoubleSide}));
+  datum.rotation.x=-Math.PI/2; datum.position.set(0,maxH,0); group.add(datum);
+  // neighbouring tower (ghost) at the given separation, to the east
+  const nx=m.tw/2+S.sep+10; box(20,60,20,nx,0,pzc,0xAEB7C2,0.35);
+  const sepOK=S.sep>=(S.tower==='resi'?RULES.sepResi:RULES.sepComm);
+  const sepLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(m.tw/2,m.podH+6,pzc),new THREE.Vector3(nx-10,m.podH+6,pzc)]),new THREE.LineBasicMaterial({color:sepOK?0x2E8B57:0xC8443C}));
+  group.add(sepLine);
+  target.set(0,Math.max(15,m.height*0.4),0);
+  radius=Math.max(radius, 0); if(!userZoomed) radius=Math.max(110,m.height*2.1+40);
+}
+let userZoomed=false; canvas.addEventListener('wheel',()=>userZoomed=true,{passive:true});
+
+function resize(){const r=canvas.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(canvas);
+(function loop(){setCam();renderer.render(scene,camera);requestAnimationFrame(loop);})();
+
+// init
+areaSel.value=0; $('maxSt').value=AREAS[0].storeys; $('maxFsr').value=AREAS[0].fsr;
+resize(); update();
+</script>
+</body>
+</html>

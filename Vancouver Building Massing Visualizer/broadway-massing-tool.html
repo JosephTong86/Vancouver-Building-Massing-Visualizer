@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broadway Plan massing check — Vancouver</title>
+<style>
+  :root{
+    --paper:#F2F4F0; --paper-2:#E8EBE5; --ink:#1B2233; --ink-2:#4A5266; --ink-3:#8A91A0;
+    --line:#C9CEC6; --yellow:#F2C230; --teal:#2E7F7B; --teal-soft:rgba(46,127,123,.14);
+    --c-centre:#B9C3DD; --c-resapt:#D3CBE3; --c-lowrise:#CBDCC4; --c-village:#F0DFA6; --c-emp:#C5CCD0; --c-inst:#E3CFCB;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 "Avenir Next","Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,input,select{font:inherit;color:inherit}
+  header{padding:22px 28px 14px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px 28px;align-items:baseline}
+  header h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+  header p{margin:0;color:var(--ink-2);max-width:60ch}
+  main{display:grid;grid-template-columns:290px minmax(0,1fr) 330px;gap:0;min-height:520px}
+  main > section{padding:20px 22px}
+  #controls{border-right:1px solid var(--line)}
+  #results{border-left:1px solid var(--line)}
+  @media (max-width:1040px){
+    main{grid-template-columns:1fr 1fr}
+    #viewer{grid-column:1 / -1;order:-1;border-bottom:1px solid var(--line)}
+    #controls{border-right:1px solid var(--line)}
+    #results{border-left:none}
+  }
+  @media (max-width:680px){
+    main{grid-template-columns:1fr}
+    #controls{border-right:none;border-bottom:1px solid var(--line)}
+    header{padding:18px 18px 12px} main > section{padding:16px 18px}
+  }
+  h2{font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 10px}
+  label{display:block;font-size:13px;color:var(--ink-2);margin:12px 0 4px}
+  input[type=text],input[type=number],select{width:100%;padding:9px 10px;border:1px solid var(--ink-3);border-radius:3px;background:#fff;outline:none}
+  input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .primary{width:100%;margin-top:14px;padding:11px 14px;background:var(--ink);color:var(--paper);border:0;border-radius:3px;cursor:pointer;font-weight:600}
+  .primary:hover{background:#2A3450}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chips button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+  .chips button:hover{border-color:var(--ink-3);color:var(--ink)}
+  .hint{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+  #viewer{position:relative;background:var(--paper-2);padding:0;min-height:460px}
+  #three{position:absolute;inset:0}
+  #three canvas{display:block;width:100%;height:100%;touch-action:none}
+  .viewer-badge{position:absolute;left:16px;top:14px;font-size:12.5px;color:var(--ink-2);pointer-events:none}
+  .viewer-badge strong{display:block;font-size:17px;color:var(--ink);font-weight:600;letter-spacing:-.01em}
+  .viewer-tools{position:absolute;right:14px;top:12px;display:flex;gap:6px}
+  .viewer-tools button{border:1px solid var(--line);background:rgba(255,255,255,.8);border-radius:3px;padding:5px 9px;font-size:12.5px;cursor:pointer}
+  .viewer-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3);font-size:14px;text-align:center;padding:20px;pointer-events:none}
+  #results .status{font-size:13px;color:var(--ink-2);margin-bottom:6px}
+  #results .area{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:0 0 2px}
+  #results .nb{color:var(--ink-2);font-size:13px;margin-bottom:14px}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:6px;border:1px solid rgba(0,0,0,.15)}
+  table.kv{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.kv td{padding:6px 0;border-top:1px solid var(--line);vertical-align:top}
+  table.kv td:first-child{color:var(--ink-2);width:46%;padding-right:8px}
+  table.kv tr.total td{font-weight:600;border-top:1px solid var(--ink-3)}
+  .big{font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.1;margin:4px 0 0}
+  .big small{font-size:14px;font-weight:400;color:var(--ink-2);margin-left:6px;letter-spacing:0}
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+  .pill{font-size:12.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff}
+  .pill.toa{background:var(--teal-soft);border-color:var(--teal);color:#1E5C59}
+  .pill.limit{background:#FFF4D6;border-color:var(--yellow)}
+  ul.notes{margin:12px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2)}
+  ul.notes li{margin:4px 0}
+  .warn{margin-top:14px;padding:10px 12px;border-left:3px solid var(--yellow);background:#FBF6E6;font-size:12.5px;color:var(--ink-2)}
+  #mapwrap{border-top:1px solid var(--line);padding:18px 28px 26px}
+  #mapwrap h2{margin-bottom:6px}
+  #map{width:100%;height:auto;display:block;border:1px solid var(--line);background:#fff;cursor:crosshair;border-radius:3px}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:12.5px;color:var(--ink-2)}
+  .legend span i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-2px;border:1px solid rgba(0,0,0,.12)}
+  footer{padding:14px 28px 26px;font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--line)}
+  footer a{color:var(--ink-2)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Broadway Plan massing check</h1>
+  <p>Enter a Vancouver address between Vine Street and Clark Drive, 1st to 16th Avenue. The tool finds the plan sub-area, applies provincial transit-oriented-area minimums, and sketches an indicative building envelope.</p>
+</header>
+
+<main>
+  <section id="controls">
+    <h2>Site</h2>
+    <label for="addr">Street address</label>
+    <input id="addr" type="text" placeholder="e.g. 500 W Broadway" autocomplete="off" value="500 W Broadway">
+    <div class="chips" id="chips">
+      <button type="button">2200 W 4th Ave</button>
+      <button type="button">1450 W 12th Ave</button>
+      <button type="button">2500 Main St</button>
+      <button type="button">800 E 7th Ave</button>
+      <button type="button">1700 W 3rd Ave</button>
+    </div>
+    <div class="hint">Or click anywhere on the plan map below.</div>
+
+    <h2 style="margin-top:22px">Lot</h2>
+    <div class="row">
+      <div><label for="frontage">Frontage (m)</label><input id="frontage" type="number" min="7" max="200" step="0.1" value="45.7"></div>
+      <div><label for="depth">Depth to lane (m)</label><input id="depth" type="number" min="15" max="150" step="0.1" value="36.6"></div>
+    </div>
+    <div class="hint">45.7 × 36.6 m is a typical 150 × 120 ft assembly. Towers generally need at least 45.7 m of frontage.</div>
+    <label for="form">Building form</label>
+    <select id="form">
+      <option value="auto">Maximum the plan allows</option>
+      <option value="midrise">Mid-rise only (no tower)</option>
+    </select>
+    <label for="side">Podium side setbacks (m)</label>
+    <input id="side" type="number" min="0" max="10" step="0.5" value="0">
+    <button class="primary" id="go" type="button">Check address</button>
+  </section>
+
+  <section id="viewer">
+    <div id="three"></div>
+    <div class="viewer-badge" id="badge"></div>
+    <div class="viewer-tools"><button type="button" id="resetView">Reset view</button></div>
+    <div class="viewer-empty" id="empty">Check an address to see its massing. Drag to orbit, scroll to zoom.</div>
+  </section>
+
+  <section id="results">
+    <h2>Result</h2>
+    <div id="out"><p class="status">No site checked yet.</p></div>
+  </section>
+</main>
+
+<div id="mapwrap">
+  <h2>Broadway Plan area</h2>
+  <canvas id="map"></canvas>
+  <div class="legend">
+    <span><i style="background:var(--c-centre)"></i>Centres and corridors (mixed use, towers)</span>
+    <span><i style="background:var(--c-resapt)"></i>Residential apartment areas</span>
+    <span><i style="background:var(--c-lowrise)"></i>Low-rise residential</span>
+    <span><i style="background:var(--c-village)"></i>Villages</span>
+    <span><i style="background:var(--c-emp)"></i>Industrial and employment</span>
+    <span><i style="background:var(--c-inst)"></i>Institutional and civic</span>
+    <span><i style="background:var(--yellow);border-radius:50%"></i>Stations, with 200 / 400 / 800 m rings</span>
+  </div>
+</div>
+
+<footer>Indicative screening only. Sub-area boundaries and maximums are simplified from the Broadway Plan (2022) and its December 2024 amendments; achievable height and density also depend on view cones, tower separation, frontage, shadowing, tenure and use rules. Confirm with the <a href="https://vancouver.ca/home-property-development/broadway-plan.aspx" target="_blank" rel="noopener">City of Vancouver</a> before relying on any number.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------- Vancouver street grid (west of Ontario St is positive gx; east is negative) ----------
+const W_STREETS=[['Ontario',0,-123.1043],['Manitoba',100,-123.1065],['Columbia',200,-123.1087],['Alberta',300,-123.1108],['Yukon',400,-123.1129],['Cambie',500,-123.1150],['Ash',600,-123.1173],['Heather',700,-123.1196],['Willow',800,-123.1219],['Laurel',900,-123.1242],['Oak',1000,-123.1265],['Spruce',1100,-123.1289],['Alder',1200,-123.1313],['Birch',1300,-123.1337],['Hemlock',1400,-123.1361],['Granville',1500,-123.1385],['Fir',1600,-123.1407],['Pine',1700,-123.1430],['Burrard',1800,-123.1454],['Cypress',1900,-123.1488],['Maple',2000,-123.1522],['Arbutus',2100,-123.1556],['Yew',2200,-123.1575],['Vine',2300,-123.1594],['Balsam',2400,-123.1613],['Larch',2500,-123.1632],['Trafalgar',2600,-123.1651],['Stephens',2700,-123.1670],['MacDonald',2800,-123.1690]];
+const E_STREETS=[['Ontario',0,-123.1043],['Quebec',100,-123.1025],['Main',200,-123.1006],['Scotia',300,-123.0986],['Prince Edward',400,-123.0967],['St. George',500,-123.0947],['Carolina',600,-123.0928],['Fraser',700,-123.0908],['Prince Albert',800,-123.0888],['Windsor',900,-123.0869],['Glen',1000,-123.0849],['',1100,-123.0829],['',1200,-123.0810],['Keith',1300,-123.0790],['Clark',1400,-123.0770],['McLean',1500,-123.0750],['Woodland',1600,-123.0730],['Commercial',1700,-123.0710]];
+const BROADWAY_LAT=49.2630, AVE_STEP=0.0008, LNG_SCALE=72650, LAT_SCALE=111320, ORIGIN_LNG=-123.1147;
+
+function interp(table,b){ // block -> lng
+  if(b<=table[0][1]) return table[0][2];
+  for(let i=1;i<table.length;i++){ if(b<=table[i][1]){ const [,b0,l0]=table[i-1],[,b1,l1]=table[i]; return l0+(l1-l0)*(b-b0)/(b1-b0);} }
+  const [,b0,l0]=table[table.length-2],[,b1,l1]=table[table.length-1]; return l1+(l1-l0)*(b-b1)/(b1-b0);
+}
+function interpInv(table,lng){ // lng -> block (lng decreasing westward for W, increasing eastward for E)
+  const asc = table[1][2]>table[0][2];
+  for(let i=1;i<table.length;i++){ const l0=table[i-1][2],l1=table[i][2]; const within = asc ? (lng>=l0&&lng<=l1) : (lng<=l0&&lng>=l1); if(within) return table[i-1][1]+(table[i][1]-table[i-1][1])*(lng-l0)/(l1-l0); }
+  const [,b0,l0]=table[table.length-2],[,b1,l1]=table[table.length-1]; return b1+(b1-b0)*(lng-l1)/(l1-l0);
+}
+const lngFromGx = gx => gx>=0 ? interp(W_STREETS,gx) : interp(E_STREETS,-gx);
+const gxFromLng = lng => lng<=W_STREETS[0][2] ? interpInv(W_STREETS,lng) : -interpInv(E_STREETS,lng);
+const latFromGy = gy => BROADWAY_LAT-(gy-9)*AVE_STEP;
+const gyFromLat = lat => 9-(lat-BROADWAY_LAT)/AVE_STEP;
+const toM = (lat,lng) => ({x:(lng-ORIGIN_LNG)*LNG_SCALE, y:(lat-BROADWAY_LAT)*LAT_SCALE});
+const fromM = (x,y) => ({lat:BROADWAY_LAT+y/LAT_SCALE, lng:ORIGIN_LNG+x/LNG_SCALE});
+const gridToM = (gx,gy) => toM(latFromGy(gy), lngFromGx(gx));
+
+// ---------- Stations ----------
+const STATIONS=[
+  {name:'Arbutus',lat:49.2637,lng:-123.1556,line:'Millennium'},
+  {name:'South Granville',lat:49.2636,lng:-123.1385,line:'Millennium'},
+  {name:'Oak–VGH',lat:49.2633,lng:-123.1265,line:'Millennium'},
+  {name:'Broadway–City Hall',lat:49.2630,lng:-123.1147,line:'Millennium / Canada'},
+  {name:'Mount Pleasant',lat:49.2630,lng:-123.1005,line:'Millennium'},
+  {name:'Great Northern Way–Emily Carr',lat:49.2682,lng:-123.0865,line:'Millennium'},
+  {name:'VCC–Clark',lat:49.2658,lng:-123.0790,line:'Millennium'},
+  {name:'Olympic Village',lat:49.2664,lng:-123.1155,line:'Canada'}
+].map(s=>Object.assign(s,toM(s.lat,s.lng)));
+
+// Provincial transit-oriented-area minimums (Bill 47): residential uses only.
+const TOA_TIERS=[{r:200,st:20,fsr:5.0},{r:400,st:12,fsr:4.0},{r:800,st:8,fsr:3.0}];
+
+// ---------- Broadway Plan sub-areas (simplified; first match wins) ----------
+const rect=(x0,y0,x1,y1)=>[[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
+const near=(d,a,b)=> d<400 ? a : b;
+const AREAS=[
+  // Kitsilano
+  {id:'kv4',nb:'Kitsilano',name:'4th Avenue village',cat:'village',poly:rect(1800,3.4,2300,4.6),rule:()=>({st:6,fsr:3.0}),
+   notes:['Village policy keeps a low-rise retail-street character; provincial transit-oriented-area minimums override the 6-storey cap where they apply.']},
+  {id:'kc',nb:'Kitsilano',name:'Broadway corridor (Arbutus Centre)',cat:'centre',poly:rect(1800,8.4,2300,9.6),rule:d=>near(d,{st:30,fsr:9.0},{st:22,fsr:7.0}),
+   notes:['Mixed-use towers with retail at grade and job space in the lower floors along Broadway.']},
+  {id:'fbu',nb:'Fairview',name:'Burrard Street (1st–8th)',cat:'centre',poly:rect(1750,0.5,1850,8.4),rule:()=>({st:20,fsr:6.5}),
+   notes:['Raised from 10 storeys / 4.5 FSR to 20 storeys / 6.5 FSR in the December 2024 amendments.']},
+  {id:'kn',nb:'Kitsilano',name:'Kitsilano North residential apartment area',cat:'resapt',poly:rect(1800,0.5,2300,8.4),rule:()=>({st:20,fsr:6.5}),
+   notes:['Towers here are expected to be 100% secured rental with at least 20% of floor area at below-market rents.']},
+  {id:'ks',nb:'Kitsilano',name:'Kitsilano South residential apartment area',cat:'resapt',poly:rect(1800,9.6,2300,12.5),rule:()=>({st:18,fsr:6.0}),
+   notes:['Towers here are expected to be 100% secured rental with at least 20% of floor area at below-market rents.']},
+  {id:'ksl',nb:'Kitsilano',name:'Kitsilano South low-rise residential',cat:'lowrise',poly:rect(1800,12.5,2300,16.5),rule:()=>({st:8,fsr:3.0}),
+   notes:['Formerly 6 storeys / 2.7 FSR; increased to 8 storeys / 3.0 FSR in 2024 to meet the outer transit-oriented-area band.']},
+  // Fairview
+  {id:'fgs',nb:'Fairview',name:'Granville Street (5th–8th)',cat:'centre',poly:rect(1450,4.6,1550,8.4),rule:()=>({st:25,fsr:8.0}),
+   notes:['2024 amendments: up to 25 storeys / 8.0 FSR; the first two levels must be job space, with retail or restaurant at grade.']},
+  {id:'fbs',nb:'Fairview',name:'Burrard Slopes mixed employment',cat:'emp',poly:rect(1500,0.5,1800,8.4),rule:()=>({st:12,fsr:5.0}),resOK:false,
+   notes:['Employment-focused area (IC zoning heritage): offices, light industrial, hotel and retail; residential generally not permitted, so provincial residential minimums do not apply.']},
+  {id:'fsgc',nb:'Fairview',name:'South Granville Centre, Broadway corridor',cat:'centre',poly:rect(1300,8.4,1800,9.6),rule:d=>near(d,{st:30,fsr:9.5},{st:24,fsr:7.5}),
+   notes:['Highest densities cluster within a block or two of South Granville Station; job space required in the podium.']},
+  {id:'fsgv',nb:'Fairview',name:'South Granville village (10th–13th)',cat:'village',poly:rect(1450,9.6,1550,13),rule:()=>({st:6,fsr:3.0}),
+   notes:['Village policy kept this at 6 storeys; 2024 amendments lift it to 20 or 12 storeys where the South Granville Station transit-oriented area applies.']},
+  {id:'fvgh',nb:'Fairview',name:'Oak–VGH Broadway corridor',cat:'centre',poly:rect(900,8.4,1300,9.6),rule:d=>near(d,{st:30,fsr:9.0},{st:24,fsr:7.5}),
+   notes:['Health-precinct corridor: hospital, research and office uses are prioritised in the lower floors.']},
+  {id:'fsn',nb:'Fairview',name:'Fairview Slopes residential apartment area',cat:'resapt',poly:rect(1000,0.5,1500,8.4),rule:()=>({st:18,fsr:6.0}),
+   notes:['Sloping sites north of Broadway; protected views toward downtown and the mountains can trim tower heights.']},
+  {id:'civ',nb:'Mount Pleasant',name:'Civic District (City Hall campus)',cat:'inst',poly:rect(200,9.6,600,12.5),rule:()=>({st:30,fsr:7.0}),
+   notes:['Guided by the Civic District Plan (Dec 2024): a mixed-use civic campus with heritage City Hall protected by a view cone.']},
+  {id:'fvs',nb:'Fairview',name:'Oak–VGH south, hospital precinct and apartments',cat:'inst',poly:rect(500,9.6,900,12.5),rule:()=>({st:20,fsr:6.0}),
+   notes:['Much of this block group is the VGH campus; heights follow the hospital master plan rather than the residential policies.']},
+  {id:'fs',nb:'Fairview',name:'Fairview South residential apartment area',cat:'resapt',poly:rect(900,9.6,1800,12.5),rule:()=>({st:20,fsr:6.5}),
+   notes:['Towers here are expected to be 100% secured rental with at least 20% of floor area at below-market rents.']},
+  {id:'fsl',nb:'Fairview',name:'Fairview South low-rise residential',cat:'lowrise',poly:rect(500,12.5,1800,16.5),rule:()=>({st:8,fsr:3.0}),
+   notes:['Formerly 6 storeys / 2.7 FSR; increased to 8 storeys / 3.0 FSR in 2024 to meet the outer transit-oriented-area band.']},
+  // Mount Pleasant
+  {id:'muc',nb:'Mount Pleasant',name:'Uptown / Cambie North (Area C)',cat:'centre',poly:rect(200,0.5,1000,8.4),rule:()=>({st:30,fsr:8.0}),
+   notes:['Originally 100% job space; the 2024 amendments allow mixed-use residential up to 30 storeys provided the previous job-space allowance is retained.','Heights are contingent on the Queen Elizabeth Park, Cambie and City Hall view cones that cross this area.']},
+  {id:'mpc',nb:'Mount Pleasant',name:'Mount Pleasant Centre, Broadway corridor',cat:'centre',poly:rect(-350,8.4,900,9.6),rule:d=>near(d,{st:30,fsr:9.0},{st:22,fsr:7.0}),
+   notes:['Peak heights sit around Broadway–City Hall and Mount Pleasant stations; job space is required in the lower floors.']},
+  {id:'msv',nb:'Mount Pleasant',name:'Main Street village (7th–13th)',cat:'village',poly:rect(-300,6.5,-100,13),rule:()=>({st:6,fsr:3.0}),
+   notes:['Village policy kept this at 6 storeys; 2024 amendments lift it to 20 or 12 storeys where the Mount Pleasant Station transit-oriented area applies.']},
+  {id:'mpi',nb:'Mount Pleasant',name:'Mount Pleasant Industrial (I-1)',cat:'emp',poly:rect(-1400,0.5,200,6.5),rule:d=>near(d,{st:20,fsr:6.0},{st:9,fsr:4.0}),resOK:false,
+   notes:['Protected industrial land: intensified light industry, production and office space; residential is not a permitted use so provincial residential minimums do not apply.','2024 amendments open small pockets near Great Northern Way–Emily Carr Station to taller employment and hotel buildings.']},
+  {id:'mpn',nb:'Mount Pleasant',name:'Mount Pleasant residential apartment area (north of Broadway)',cat:'resapt',poly:rect(-100,6.5,200,8.4),rule:()=>({st:18,fsr:6.0}),
+   notes:['Towers here are expected to be 100% secured rental with at least 20% of floor area at below-market rents.']},
+  {id:'mpen',nb:'Mount Pleasant',name:'Mount Pleasant East residential apartment area',cat:'resapt',poly:rect(-1400,6.5,-300,8.4),rule:()=>({st:18,fsr:6.0}),
+   notes:['Towers here are expected to be 100% secured rental with at least 20% of floor area at below-market rents.']},
+  {id:'mpeb',nb:'Mount Pleasant',name:'Mount Pleasant East, Broadway corridor',cat:'centre',poly:rect(-1400,8.4,-350,9.6),rule:d=>near(d,{st:24,fsr:7.5},{st:20,fsr:6.5}),
+   notes:['East Broadway steps down in height moving away from Main Street toward Clark Drive.']},
+  {id:'mps',nb:'Mount Pleasant',name:'Mount Pleasant South residential apartment area',cat:'resapt',poly:rect(-100,9.6,200,12.5),rule:()=>({st:18,fsr:6.0}),
+   notes:['Towers here are expected to be 100% secured rental with at least 20% of floor area at below-market rents.']},
+  {id:'mpe',nb:'Mount Pleasant',name:'Mount Pleasant East residential transition area',cat:'resapt',poly:rect(-1400,9.6,-300,12.5),rule:()=>({st:12,fsr:4.5}),
+   notes:['Transition area between the Broadway corridor and lower-scale streets; mid-rise apartments are the expected form.']},
+  {id:'mpl',nb:'Mount Pleasant',name:'Mount Pleasant low-rise residential',cat:'lowrise',poly:rect(-1400,12.5,500,16.5),rule:()=>({st:8,fsr:3.0}),
+   notes:['Formerly 6 storeys / 2.7 FSR; increased to 8 storeys / 3.0 FSR in 2024 to meet the outer transit-oriented-area band.']}
+];
+const CAT_LABEL={centre:'Centre / corridor',resapt:'Residential apartment area',lowrise:'Low-rise residential',village:'Village',emp:'Industrial / employment',inst:'Institutional / civic'};
+const CAT_COLOR={centre:'#B9C3DD',resapt:'#D3CBE3',lowrise:'#CBDCC4',village:'#F0DFA6',emp:'#C5CCD0',inst:'#E3CFCB'};
+const PLAN_BOUNDS={x0:-1400,x1:2300,y0:0.5,y1:16.5};
+
+function pointInPoly(pt,poly){ let inside=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const [xi,yi]=poly[i],[xj,yj]=poly[j]; if(((yi>pt[1])!==(yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/(yj-yi)+xi)) inside=!inside; } return inside; }
+function findArea(gx,gy){ return AREAS.find(a=>pointInPoly([gx,gy],a.poly))||null; }
+
+// ---------- Address parsing ----------
+const NS_LOOKUP=(()=>{ const m={}; W_STREETS.forEach(([n,b])=>{ if(n) m[n.toLowerCase().replace(/\./g,'')]=b; }); E_STREETS.forEach(([n,b])=>{ if(n && !(n.toLowerCase() in m)) m[n.toLowerCase().replace(/\./g,'')]=-b; }); return m; })();
+function parseAddress(raw){
+  let s=raw.trim().toLowerCase().replace(/[.,#]/g,' ').replace(/\s+/g,' ');
+  const m=s.match(/^(\d+)\s*(?:-\s*\d+\s*)?(.+)$/); if(!m) return {error:'Start with a street number, e.g. "500 W Broadway".'};
+  const num=parseInt(m[1],10); let rest=m[2].replace(/\bwest\b/g,'w').replace(/\beast\b/g,'e').replace(/\b(avenue|av|ave)\b/g,'ave').replace(/\b(street|st)\b/g,'st').replace(/\b(drive|dr)\b/g,'dr').replace(/\bvancouver\b.*$/,'').replace(/\bbc\b.*$/,'').trim();
+  let dir = /\bw\b/.test(rest)?'W': /\be\b/.test(rest)?'E':null; rest=rest.replace(/\b[we]\b/g,'').trim();
+  let ave=null;
+  if(/^broadway$/.test(rest)) ave=9;
+  else { const a=rest.match(/^(\d+)(?:st|nd|rd|th)?\s*(?:ave)?$/); if(a) ave=parseInt(a[1],10); }
+  if(ave!==null){
+    if(ave<1||ave>16) return {error:`${ave}th Avenue is outside the Broadway Plan area (1st to 16th).`};
+    if(!dir) return {error:'Add East or West, e.g. "500 W Broadway" or "300 E 8th Ave".'};
+    const gx = dir==='W'? num : -num;
+    const gy = ave + (num%2===0?-0.15:0.15);
+    return {num,gx,gy,label:`${num} ${dir} ${ave===9?'Broadway':ordinal(ave)+' Ave'}`, std:`${dir} ${ave===9?'BROADWAY':ordinal(ave).toUpperCase()+' AV'}`};
+  }
+  const name=rest.replace(/\b(st|dr)\b/g,'').trim();
+  if(/kingsway|great northern/.test(name)) return {error:'Diagonal streets like Kingsway and Great Northern Way are not supported; try the nearest avenue address.'};
+  const key=Object.keys(NS_LOOKUP).find(k=>k===name||k.replace(/\s/g,'')===name.replace(/\s/g,''));
+  if(!key) return {error:`"${rest}" is not a street this tool knows. Try an avenue address (e.g. "1450 W 12th Ave") or a major north–south street.`};
+  const gy=(num-1600)/100; if(gy<0.5||gy>16.5) return {error:`${num} ${cap(key)} St is outside the Broadway Plan area.`};
+  const blk=NS_LOOKUP[key]; const gx=blk+(num%2===0?-12:12)*Math.sign(blk||1);
+  return {num,gx,gy,label:`${num} ${cap(key)} ${key==='clark'?'Dr':'St'}`, std:`${key.toUpperCase()} ${key==='clark'?'DR':'ST'}`};
+}
+const ordinal=n=>n+(n%10===1&&n!==11?'st':n%10===2&&n!==12?'nd':n%10===3&&n!==13?'rd':'th');
+const cap=s=>s.replace(/\b\w/g,c=>c.toUpperCase());
+function describeGrid(gx,gy){ const dir=gx>=0?'W':'E'; const blk=Math.floor(Math.abs(gx)/100)*100; const av=Math.round(gy); return `≈ ${blk} block ${dir} ${av===9?'Broadway':ordinal(av)+' Ave'}`; }
+
+// Optional: try City of Vancouver open data for an exact point; fall back silently to the grid estimate.
+async function geocodeCity(parsed){
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),3500);
+  try{
+    const where=encodeURIComponent(`civic_number=${parsed.num} and std_street like "${parsed.std}"`);
+    const r=await fetch(`https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/property-addresses/records?where=${where}&limit=1`,{signal:ctrl.signal});
+    if(!r.ok) throw 0; const j=await r.json(); const p=j.results&&j.results[0]&&j.results[0].geo_point_2d; if(!p) throw 0;
+    return {lat:p.lat,lng:p.lon};
+  }catch(e){ return null; } finally{ clearTimeout(t); }
+}
+
+// ---------- Rules ----------
+function evaluate(site){ // site: {gx,gy,x,y}
+  const area=findArea(site.gx,site.gy);
+  const inPlan = site.gx>=PLAN_BOUNDS.x0&&site.gx<=PLAN_BOUNDS.x1&&site.gy>=PLAN_BOUNDS.y0&&site.gy<=PLAN_BOUNDS.y1;
+  const dists=STATIONS.map(s=>({s,d:Math.hypot(s.x-site.x,s.y-site.y)})).sort((a,b)=>a.d-b.d);
+  const nearest=dists[0]; const tier=TOA_TIERS.find(t=>nearest.d<=t.r)||null;
+  if(!area||!inPlan) return {area:null,inPlan,nearest,tier};
+  const base=area.rule(nearest.d); const resOK=area.resOK!==false;
+  let st=base.st,fsr=base.fsr,toaApplied=false;
+  if(resOK&&tier){ if(tier.st>st){st=tier.st;toaApplied=true;} if(tier.fsr>fsr){fsr=tier.fsr;toaApplied=true;} }
+  const towerOK = st>12 && (area.cat!=='lowrise');
+  return {area,inPlan,nearest,tier,base,st,fsr,resOK,toaApplied,towerOK};
+}
+
+function massing(ev,lot){
+  const {F,D,side,form}=lot; const siteArea=F*D; const cat=ev.area.cat;
+  const commercialGround = cat==='centre'||cat==='village'||cat==='emp'||cat==='inst';
+  const front = commercialGround?0:3.7, rear = commercialGround?3.0:6.0;
+  const pf=Math.max(F-2*side,6), pdFull=Math.max(D-front-rear,10); const podFull=pf*pdFull;
+  const allowed=ev.fsr*siteArea;
+  const gh = commercialGround?4.5:3.6; const uh = cat==='emp'?3.8:3.0;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const out={front,rear,pf,pd:pdFull,siteArea,allowed,gh,uh,limit:'height',shaped:false,form:'midrise'};
+  let tower = ev.towerOK && form!=='midrise' && F>=45.7;
+  if(tower){
+    const insetSide = cat==='emp'?6:12.2, insetF=3, insetR=3, cap = cat==='emp'?1400:604, minPlate = cat==='emp'?900:450;
+    const tw=F-2*insetSide; let td=Math.min(pdFull-insetF-insetR, cap/tw);
+    if(tw<15||td<12){ tower=false; }
+    else{
+      const P=Math.min(cat==='resapt'?4:cat==='emp'?3:6, ev.st-1); let T=ev.st-P; let plate=tw*td; let podF=podFull;
+      let gfa=podF*P+plate*T;
+      if(gfa>allowed){ podF=clamp((allowed-plate*T)/P,0.55*podFull,podFull); gfa=podF*P+plate*T; out.shaped=true; }
+      if(gfa>allowed){ plate=clamp((allowed-podF*P)/T,minPlate,plate); td=plate/tw; gfa=podF*P+plate*T; }
+      if(gfa>allowed){ T=Math.max(0,Math.floor((allowed-podF*P)/plate)); gfa=podF*P+plate*T; out.limit='density'; }
+      if(T>=1){ out.pd=podF/pf; Object.assign(out,{form:'tower',P,T,tw,td,plate,towerZ:front+insetF,gfa,storeys:P+T}); }
+      else tower=false;
+    }
+  }
+  if(!tower){
+    let S=ev.st; if(ev.towerOK&&(form==='midrise'||F<45.7)) S=Math.min(ev.st,12);
+    if(ev.towerOK&&form!=='midrise'&&F<45.7) out.frontageNote=true;
+    let foot=podFull; let gfa=foot*S;
+    if(gfa>allowed){ foot=clamp(allowed/S,0.4*podFull,podFull); gfa=foot*S; out.shaped=foot<podFull; }
+    if(gfa>allowed){ S=Math.max(1,Math.floor(allowed/foot)); gfa=foot*S; out.limit='density'; }
+    out.pd=foot/pf; out.limit=out.limit; Object.assign(out,{P:S,T:0,gfa,storeys:S,form:'midrise'});
+  }
+  out.height = gh+(out.storeys-1)*uh;
+  const jobFloors = cat==='emp'?out.storeys : cat==='centre'?2 : (cat==='village'||cat==='inst')?1:0;
+  out.jobGFA = Math.min(out.gfa, out.pf*out.pd*jobFloors);
+  out.resGFA = ev.resOK ? out.gfa-out.jobGFA : 0;
+  out.units = Math.round(out.resGFA*0.85/70);
+  out.fsrAchieved = out.gfa/siteArea;
+  return out;
+}
+
+// ---------- 3D viewer ----------
+let renderer,scene,camera,buildGroup,orbit={theta:-0.7,phi:1.05,r:140,target:new THREE.Vector3(0,20,18)},needsRender=true;
+function initThree(){
+  const el=document.getElementById('three');
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; el.appendChild(renderer.domElement);
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(38,1,1,2000);
+  scene.add(new THREE.HemisphereLight(0xffffff,0xb8bcb0,0.85));
+  const sun=new THREE.DirectionalLight(0xffffff,0.9); sun.position.set(-90,140,-60); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); const c=sun.shadow.camera; c.left=c.bottom=-160; c.right=c.top=160; c.near=10; c.far=500; sun.shadow.bias=-0.0005; scene.add(sun);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshStandardMaterial({color:0xE6E9E2,roughness:1})); ground.rotation.x=-Math.PI/2; ground.position.y=-0.05; ground.receiveShadow=true; scene.add(ground);
+  buildGroup=new THREE.Group(); scene.add(buildGroup);
+  const resize=()=>{ const w=el.clientWidth,h=el.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); needsRender=true; };
+  new ResizeObserver(resize).observe(el); resize();
+  // orbit
+  let drag=null; const dom=renderer.domElement;
+  dom.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY}; dom.setPointerCapture(e.pointerId);});
+  dom.addEventListener('pointermove',e=>{ if(!drag) return; orbit.theta-=(e.clientX-drag.x)*0.006; orbit.phi=Math.min(1.5,Math.max(0.15,orbit.phi-(e.clientY-drag.y)*0.005)); drag={x:e.clientX,y:e.clientY}; needsRender=true; });
+  dom.addEventListener('pointerup',()=>drag=null); dom.addEventListener('pointercancel',()=>drag=null);
+  dom.addEventListener('wheel',e=>{ e.preventDefault(); orbit.r=Math.min(600,Math.max(30,orbit.r*(1+e.deltaY*0.0012))); needsRender=true; },{passive:false});
+  document.getElementById('resetView').onclick=()=>{ fitView(); };
+  (function loop(){ requestAnimationFrame(loop); if(!needsRender) return; needsRender=false; const t=orbit.target; camera.position.set(t.x+orbit.r*Math.sin(orbit.phi)*Math.sin(orbit.theta), t.y+orbit.r*Math.cos(orbit.phi), t.z+orbit.r*Math.sin(orbit.phi)*Math.cos(orbit.theta)); camera.lookAt(t); renderer.render(scene,camera); })();
+}
+let lastHeight=30,lastDepth=36;
+function fitView(){ orbit.theta=-0.7; orbit.phi=1.05; orbit.r=Math.max(90,lastHeight*2.2+60); orbit.target.set(0,lastHeight*0.35,lastDepth/2); needsRender=true; }
+function clearGroup(g){ while(g.children.length){ const c=g.children.pop(); c.geometry&&c.geometry.dispose(); c.material&&c.material.dispose&&c.material.dispose(); } }
+function box(w,h,d,x,y,z,color,opts={}){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial(Object.assign({color,roughness:.9},opts))); m.position.set(x,y,z); m.castShadow=!opts.transparent; m.receiveShadow=true; return m; }
+function floorLines(w,d,x,z,y0,n,gh,uh,color){ const pts=[]; for(let i=1;i<n;i++){ const y=y0+gh+(i-1)*uh+0.01; const hw=w/2,hd=d/2; pts.push(x-hw,y,z-hd, x+hw,y,z-hd, x+hw,y,z-hd, x+hw,y,z+hd, x+hw,y,z+hd, x-hw,y,z+hd, x-hw,y,z+hd, x-hw,y,z-hd); } const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3)); return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color,transparent:true,opacity:.35})); }
+function edges(mesh,color){ const e=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color})); e.position.copy(mesh.position); return e; }
+function drawMassing(ms,lot){
+  clearGroup(buildGroup); const {F,D}=lot; const ink=0x1B2233;
+  buildGroup.add(box(F,0.12,D,0,0.06,D/2,0xD6DFCF));                       // lot
+  buildGroup.add(box(F*5,0.1,20,0,0.02,-10,0xC9CBC6));                     // street
+  buildGroup.add(box(F*5,0.1,6,0,0.02,D+3,0xD2D3CE));                      // lane
+  buildGroup.add(box(F*5,0.1,D,0,0.0,D/2,0xDFE2DA));                       // neighbouring lots
+  for(const sx of [-1,1]){ for(let k=0;k<2;k++){ const nx=sx*(F/2+ (k+0.5)*Math.max(F,20)+0.3); const g=box(Math.max(F,20)-0.6,10,D-8,nx,5,D/2-1,0xFFFFFF,{transparent:true,opacity:.42}); buildGroup.add(g); } }
+  const P_h=ms.gh+(ms.P-1)*ms.uh;
+  const pod=box(ms.pf,P_h,ms.pd,0,P_h/2,ms.front+ms.pd/2,0xF7F6F0); buildGroup.add(pod); buildGroup.add(edges(pod,ink)); buildGroup.add(floorLines(ms.pf,ms.pd,0,ms.front+ms.pd/2,0,ms.P,ms.gh,ms.uh,ink));
+  if(ms.form==='tower'){ const T_h=ms.T*ms.uh; const z=ms.towerZ+ms.td/2; const tw=box(ms.tw,T_h,ms.td,0,P_h+T_h/2,z,0xF7F6F0); buildGroup.add(tw); buildGroup.add(edges(tw,ink)); buildGroup.add(floorLines(ms.tw,ms.td,0,z,P_h,ms.T+1,ms.uh,ms.uh,ink)); }
+  lastHeight=ms.height; lastDepth=D; fitView();
+  document.getElementById('empty').style.display='none';
+}
+
+// ---------- Plan map ----------
+const mapC=document.getElementById('map'); const mctx=mapC.getContext('2d');
+const MAP={x0:-3350,x1:2850,y0:-680,y1:800,pad:0}; let mapSite=null,mapNearest=null;
+function mapPx(x,y,W,H){ return [ (x-MAP.x0)/(MAP.x1-MAP.x0)*W, (1-(y-MAP.y0)/(MAP.y1-MAP.y0))*H ]; }
+function drawMap(){
+  const W=mapC.clientWidth||900, H=Math.round(W*(MAP.y1-MAP.y0)/(MAP.x1-MAP.x0)); const dpr=Math.min(devicePixelRatio,2);
+  mapC.width=W*dpr; mapC.height=H*dpr; mapC.style.height=H+'px'; mctx.setTransform(dpr,0,0,dpr,0,0);
+  mctx.fillStyle='#FBFBF9'; mctx.fillRect(0,0,W,H);
+  // areas (draw in reverse so earlier-priority polygons paint on top)
+  for(let i=AREAS.length-1;i>=0;i--){ const a=AREAS[i]; mctx.beginPath(); a.poly.forEach(([gx,gy],k)=>{ const m=gridToM(gx,gy); const [px,py]=mapPx(m.x,m.y,W,H); k?mctx.lineTo(px,py):mctx.moveTo(px,py); }); mctx.closePath(); mctx.fillStyle=CAT_COLOR[a.cat]; mctx.fill(); mctx.strokeStyle='rgba(255,255,255,.9)'; mctx.lineWidth=1; mctx.stroke(); }
+  // streets
+  mctx.strokeStyle='rgba(27,34,51,.28)'; mctx.lineWidth=1; mctx.fillStyle='#4A5266'; mctx.font='11px "Avenir Next","Segoe UI",Helvetica,Arial,sans-serif'; mctx.textAlign='center';
+  for(const [n,b] of [['Vine',2300],['Arbutus',2100],['Burrard',1800],['Granville',1500],['Oak',1000],['Cambie',500]]){ const m0=gridToM(b,0.5),m1=gridToM(b,16.5); const [x,y0]=mapPx(m0.x,m0.y,W,H),[,y1]=mapPx(m1.x,m1.y,W,H); mctx.beginPath(); mctx.moveTo(x,y0); mctx.lineTo(x,y1); mctx.stroke(); mctx.fillText(n,x,H-6); }
+  for(const [n,b] of [['Main',-200],['Fraser',-700],['Clark',-1400]]){ const m0=gridToM(b,0.5),m1=gridToM(b,16.5); const [x,y0]=mapPx(m0.x,m0.y,W,H),[,y1]=mapPx(m1.x,m1.y,W,H); mctx.beginPath(); mctx.moveTo(x,y0); mctx.lineTo(x,y1); mctx.stroke(); mctx.fillText(n,x,H-6); }
+  mctx.textAlign='left';
+  for(const [n,a] of [['1st Ave',1],['4th Ave',4],['Broadway',9],['12th Ave',12],['16th Ave',16]]){ const m0=gridToM(2300,a),m1=gridToM(-1400,a); const [x0,y]=mapPx(m0.x,m0.y,W,H),[x1]=mapPx(m1.x,m1.y,W,H); mctx.beginPath(); mctx.moveTo(x0,y); mctx.lineTo(x1,y); mctx.lineWidth=a===9?2:1; mctx.stroke(); mctx.fillText(n,x0+4,y-3); }
+  // rings for nearest station
+  if(mapNearest){ const [cx,cy]=mapPx(mapNearest.x,mapNearest.y,W,H); const sc=W/(MAP.x1-MAP.x0); mctx.setLineDash([4,4]); mctx.strokeStyle='#2E7F7B'; mctx.lineWidth=1.2; for(const t of TOA_TIERS){ mctx.beginPath(); mctx.arc(cx,cy,t.r*sc,0,Math.PI*2); mctx.stroke(); } mctx.setLineDash([]); }
+  // stations
+  for(const s of STATIONS){ const [x,y]=mapPx(s.x,s.y,W,H); mctx.beginPath(); mctx.arc(x,y,5,0,Math.PI*2); mctx.fillStyle='#F2C230'; mctx.fill(); mctx.lineWidth=1.5; mctx.strokeStyle='#1B2233'; mctx.stroke(); }
+  // site
+  if(mapSite){ const [x,y]=mapPx(mapSite.x,mapSite.y,W,H); mctx.beginPath(); mctx.moveTo(x,y); mctx.lineTo(x-6,y-14); mctx.lineTo(x+6,y-14); mctx.closePath(); mctx.fillStyle='#1B2233'; mctx.fill(); mctx.beginPath(); mctx.arc(x,y-17,5,0,Math.PI*2); mctx.fill(); mctx.beginPath(); mctx.arc(x,y-17,2,0,Math.PI*2); mctx.fillStyle='#fff'; mctx.fill(); }
+}
+mapC.addEventListener('click',e=>{ const r=mapC.getBoundingClientRect(); const W=r.width,H=r.height; const x=MAP.x0+(e.clientX-r.left)/W*(MAP.x1-MAP.x0); const y=MAP.y0+(1-(e.clientY-r.top)/H)*(MAP.y1-MAP.y0); const {lat,lng}=fromM(x,y); const gx=gxFromLng(lng),gy=gyFromLat(lat); const label=describeGrid(gx,gy); document.getElementById('addr').value=''; runSite({gx,gy,x,y,label,source:'map click'}); });
+new ResizeObserver(()=>drawMap()).observe(mapC);
+
+// ---------- Orchestration ----------
+const fmt=(n,d=0)=>n.toLocaleString('en-CA',{maximumFractionDigits:d,minimumFractionDigits:d});
+const sqft=m2=>fmt(m2*10.7639);
+function lotInputs(){ return {F:+document.getElementById('frontage').value||45.7, D:+document.getElementById('depth').value||36.6, side:+document.getElementById('side').value||0, form:document.getElementById('form').value}; }
+let currentSite=null;
+async function runAddress(){
+  const raw=document.getElementById('addr').value; const p=parseAddress(raw);
+  if(p.error){ document.getElementById('out').innerHTML=`<p class="status">${p.error}</p>`; return; }
+  document.getElementById('out').innerHTML='<p class="status">Locating…</p>';
+  let site; const exact=await geocodeCity(p);
+  if(exact){ const m=toM(exact.lat,exact.lng); site={gx:gxFromLng(exact.lng),gy:gyFromLat(exact.lat),x:m.x,y:m.y,label:p.label,source:'City of Vancouver address point'}; }
+  else { const m=gridToM(p.gx,p.gy); site={gx:p.gx,gy:p.gy,x:m.x,y:m.y,label:p.label,source:'street-grid estimate'}; }
+  runSite(site);
+}
+function runSite(site){
+  currentSite=site; const ev=evaluate(site); mapSite=site; mapNearest=ev.nearest.s; drawMap();
+  const out=document.getElementById('out');
+  if(!ev.area){ out.innerHTML=`<p class="status">${site.label} — located by ${site.source}.</p><p class="area">Outside the Broadway Plan area</p><p class="nb">Nearest station: ${ev.nearest.s.name}, ${fmt(ev.nearest.d)} m away${ev.tier?` (within the ${ev.tier.r} m transit-oriented-area band: province requires at least ${ev.tier.st} storeys / ${ev.tier.fsr.toFixed(1)} FAR for residential)`:''}.</p><p class="hint">The plan covers Vine Street to Clark Drive, 1st to 16th Avenue. Other area plans or standard zoning apply here.</p>`; document.getElementById('badge').innerHTML=''; clearGroup(buildGroup); needsRender=true; document.getElementById('empty').style.display='grid'; return; }
+  const lot=lotInputs(); const ms=massing(ev,lot); drawMassing(ms,lot);
+  const a=ev.area;
+  document.getElementById('badge').innerHTML=`<strong>${ms.storeys} storeys · ${fmt(ms.height,0)} m</strong>${ms.form==='tower'?`${ms.P}-storey podium, ${ms.T}-storey tower`:'mid-rise block'} · ${ms.fsrAchieved.toFixed(2)} FSR`;
+  const notes=[...a.notes];
+  if(ev.toaApplied) notes.unshift(`Provincial transit-oriented-area minimums (${ev.tier.st} storeys / ${ev.tier.fsr.toFixed(1)} FAR within ${ev.tier.r} m of ${ev.nearest.s.name}) exceed the plan's ${ev.base.st} storeys / ${ev.base.fsr.toFixed(1)} FSR and are shown instead.`);
+  else if(ev.tier&&ev.resOK) notes.push(`Within ${ev.tier.r} m of ${ev.nearest.s.name}; the plan's own maximum already meets the provincial minimum of ${ev.tier.st} storeys / ${ev.tier.fsr.toFixed(1)} FAR.`);
+  if(ms.frontageNote) notes.unshift(`Frontage is under 45.7 m (150 ft), so a tower is unlikely to be supportable; a mid-rise up to 12 storeys is sketched instead. Assemble to at least 45.7 m to test the tower form.`);
+  if(ms.limit==='density') notes.unshift('Floor space, not height, is the binding limit on this lot: even with a reduced footprint the full storey count would exceed the permitted FSR, so storeys were trimmed.');
+  else if(ms.shaped) notes.unshift('The footprint was pulled in from the lane so the full height fits within the permitted FSR; on larger assemblies the podium could extend further.');
+  if(ms.form==='tower') notes.push(`Residential tower floorplates are capped near 604 m² (6,500 sq ft) and towers need about 24 m (80 ft) separation, which is why the tower sits inboard of the podium.`);
+  if(a.cat==='centre') notes.push('Broadway-corridor sites within the "areas for higher buildings" were folded into the general view-cone review in 2024; check current protected-view mapping.');
+  out.innerHTML=`
+    <p class="status">${site.label} — located by ${site.source}</p>
+    <p class="area"><span class="swatch" style="background:${CAT_COLOR[a.cat]}"></span>${a.name}</p>
+    <p class="nb">${a.nb} · ${CAT_LABEL[a.cat]} · ${fmt(ev.nearest.d)} m to ${ev.nearest.s.name} Station</p>
+    <div class="pillrow">
+      <span class="pill">Plan: ${ev.base.st} st / ${ev.base.fsr.toFixed(1)} FSR</span>
+      ${ev.tier&&ev.resOK?`<span class="pill toa">TOA ${ev.tier.r} m: ${ev.tier.st} st / ${ev.tier.fsr.toFixed(1)} FAR</span>`:''}
+      ${ms.limit==='density'?'<span class="pill limit">FSR-limited</span>':''}
+    </div>
+    <p class="big">${ev.st}<small>storeys · ${ev.fsr.toFixed(1)} FSR permitted here</small></p>
+    <table class="kv" style="margin-top:12px">
+      <tr><td>Site area</td><td>${fmt(ms.siteArea)} m² (${sqft(ms.siteArea)} sq ft)</td></tr>
+      <tr><td>Form sketched</td><td>${ms.form==='tower'?`${ms.P}-storey podium + ${ms.T}-storey tower`:`${ms.storeys}-storey mid-rise`}</td></tr>
+      <tr><td>Podium footprint</td><td>${fmt(ms.pf,1)} × ${fmt(ms.pd,1)} m</td></tr>
+      ${ms.form==='tower'?`<tr><td>Tower floorplate</td><td>${fmt(ms.tw,1)} × ${fmt(ms.td,1)} m (${fmt(ms.plate)} m²)</td></tr>`:''}
+      <tr><td>Height</td><td>${fmt(ms.height,1)} m</td></tr>
+      <tr><td>Gross floor area</td><td>${fmt(ms.gfa)} m² (${sqft(ms.gfa)} sq ft)</td></tr>
+      ${ms.jobGFA>0?`<tr><td>Job space</td><td>${fmt(ms.jobGFA)} m²</td></tr>`:''}
+      ${ev.resOK?`<tr><td>Residential</td><td>${fmt(ms.resGFA)} m² · ~${fmt(ms.units)} homes${ms.units>0&&a.cat!=='centre'?`, ~${fmt(Math.round(ms.units*0.2))} below-market`:''}</td></tr>`:'<tr><td>Residential</td><td>Not a permitted use in this area</td></tr>'}
+      <tr class="total"><td>FSR achieved</td><td>${ms.fsrAchieved.toFixed(2)} of ${ev.fsr.toFixed(1)} permitted</td></tr>
+    </table>
+    <ul class="notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>
+    <div class="warn">Sub-area boundaries are simplified to the street grid and the ${site.source==='street-grid estimate'?'address point is estimated from Vancouver\'s block numbering':'address point comes from City open data'}. Treat everything here as a first screen, not a zoning opinion.</div>`;
+}
+document.getElementById('go').onclick=runAddress;
+document.getElementById('addr').addEventListener('keydown',e=>{ if(e.key==='Enter') runAddress(); });
+document.querySelectorAll('#chips button').forEach(b=>b.onclick=()=>{ document.getElementById('addr').value=b.textContent; runAddress(); });
+['frontage','depth','side','form'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{ if(currentSite) runSite(currentSite); }));
+
+if(window.THREE){ initThree(); } else { document.getElementById('empty').textContent='The 3D viewer could not load (three.js unavailable). Address checks and the map still work.'; }
+drawMap();
+runAddress();
+</script>
+</body>
+</html>
